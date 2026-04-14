@@ -1,17 +1,19 @@
 (ns hive-hagent-backend
   "IChatBackend protocol — plist-based dispatch.
 
-   A backend is a plist with keys:
-     :name      symbol identifying the backend (e.g. 'openclaude, 'agent)
-     :label     human-readable label for UI
-     :start-fn  (session-opts) -> session-handle (opaque map)
-     :send-fn   (handle prompt) -> nil    (enqueue user turn)
-     :interrupt-fn (handle)     -> nil    (cancel in-flight turn)
-     :stop-fn   (handle)        -> nil    (terminate subprocess + cleanup)
-     :alive-p-fn (handle)       -> bool   (session still running?)
+   A backend is a plist with these keys:
+     :name         symbol identifying the backend (e.g. 'openclaude, 'agent)
+     :label        human-readable label for UI
+     :start-fn     (opts) -> {:buffer BUF :process PROC}
+                   opts plist carries :project-root :buffer-name :terminal
+     :send-fn      (handle prompt) -> nil     ; handle = {:buffer :process}
+     :interrupt-fn (handle)        -> nil
+     :stop-fn      (handle)        -> nil
+     :alive-p-fn   (handle)        -> bool
 
-   The returned session handle is a plist the backend owns; the core
-   never introspects it, only passes it back to the backend fns.
+   The session handle threaded through send/interrupt/stop is always a
+   plist with :buffer and :process — the core constructs it, the backend
+   unpacks as needed.
 
    Why plists not defprotocol: cljel emits plain elisp — no CLOS/protocols.
    Keyword dispatch is the idiomatic elisp analogue.")
@@ -41,11 +43,12 @@
 ;; ---------------------------------------------------------------------------
 
 (defn start [backend opts]
-  "Start a session on BACKEND with OPTS.  Returns session handle."
+  "Start a session on BACKEND with OPTS.
+Returns {:buffer BUF :process PROC}."
   (funcall (plist-get backend :start-fn) opts))
 
 (defn send [backend handle prompt]
-  "Send PROMPT to BACKEND session HANDLE."
+  "Send PROMPT string to BACKEND session HANDLE."
   (funcall (plist-get backend :send-fn) handle prompt))
 
 (defn interrupt [backend handle]
@@ -58,6 +61,10 @@
 
 (defn alive-p [backend handle]
   "Non-nil if BACKEND session HANDLE is still alive."
-  (funcall (plist-get backend :alive-p-fn) handle))
+  (let [f (plist-get backend :alive-p-fn)]
+    (if f
+      (funcall f handle)
+      (and (buffer-live-p (plist-get handle :buffer))
+           (process-live-p (plist-get handle :process))))))
 
 (provide 'hive-hagent-backend)
