@@ -6,6 +6,7 @@
 (require 'hive-hagent-backend)
 (require 'hive-hagent-core)
 (require 'hive-hagent-backend-openclaude)
+(require 'hive-hagent-olympus)
 
 ;;; Code:
 

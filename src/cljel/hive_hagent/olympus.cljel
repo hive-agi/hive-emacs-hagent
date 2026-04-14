@@ -1,0 +1,118 @@
+(ns hive-hagent-olympus
+  "Olympus integration — make hive-hagent sessions visible to olympus-ui.
+
+   olympus-ui (from hive-emacs) reads `hive-mcp-swarm--slaves', a hash
+   table keyed by slave-id whose values are plists with :name :buffer
+   :status :current-task :cwd.  We piggy-back on that registry so our
+   sessions show up in the Olympus Grid dashboard alongside real lings.
+
+   Integration is purely via advice on hive-hagent-core fns — the core
+   stays unaware of olympus.  This module is only useful when hive-emacs
+   is on the load-path; otherwise it no-ops safely.
+
+   Status model:
+     :idle    — session live, waiting for input
+     :working — prompt sent, CLI processing
+     :error   — subprocess died
+     :spawning — process starting (brief)
+
+   v1 transitions are coarse: send -> :working, interrupt -> :idle,
+   stop -> unregister.  Finer-grained detection (output quiescence via
+   process filter) is a v2 concern."
+  (:require hive-hagent-backend
+            hive-hagent-core
+            hive-hagent-log))
+
+(defvar hive-hagent-swarm--slaves)
+
+(defn available-p []
+  "Non-nil if the olympus swarm registry is present (hive-emacs loaded)."
+  (and (boundp 'hive-mcp-swarm--slaves)
+       (hash-table-p (symbol-value 'hive-mcp-swarm--slaves))))
+
+(defn -session-id [session]
+  "Stable string id for SESSION — used as the swarm-registry key."
+  (let [root (or (plist-get session :project-root) "global")
+        backend-name (plist-get (plist-get session :backend) :name)
+        base (file-name-nondirectory (directory-file-name root))]
+    (format "hagent:%s:%s" (symbol-name backend-name) base)))
+
+(defn -session->slave [session status task]
+  "Build a slave plist conforming to olympus-ui's expected schema."
+  (list :id (hive-hagent-olympus/-session-id session)
+        :name (hive-hagent-olympus/-session-id session)
+        :buffer (plist-get session :buffer)
+        :status status
+        :current-task task
+        :cwd (plist-get session :project-root)
+        :kind 'hagent
+        :backend (plist-get (plist-get session :backend) :name)))
+
+(defn -put! [session status task]
+  "Register / update SESSION in the olympus swarm table with STATUS."
+  (when (hive-hagent-olympus/available-p)
+    (let [id (hive-hagent-olympus/-session-id session)
+          slave (hive-hagent-olympus/-session->slave session status task)]
+      (puthash id slave (symbol-value 'hive-mcp-swarm--slaves))
+      (hive-hagent-log/log-debug
+       'olympus "put %s -> %s" id status))))
+
+(defn -remove! [session]
+  "Drop SESSION from the olympus swarm table."
+  (when (hive-hagent-olympus/available-p)
+    (let [id (hive-hagent-olympus/-session-id session)]
+      (remhash id (symbol-value 'hive-mcp-swarm--slaves))
+      (hive-hagent-log/log-debug 'olympus "remove %s" id))))
+
+;; ---------------------------------------------------------------------------
+;; Advice — attach to core lifecycle fns
+;; ---------------------------------------------------------------------------
+
+(defn -after-open [session]
+  "Register SESSION after `hive-hagent-core/open-session' returns."
+  (hive-hagent-olympus/-put! session ':idle nil)
+  session)
+
+(defn -after-send [session prompt]
+  "Mark SESSION working after `hive-hagent-core/send-prompt'."
+  (hive-hagent-olympus/-put! session ':working prompt))
+
+(defn -after-interrupt [session]
+  "Return SESSION to idle after interrupt."
+  (hive-hagent-olympus/-put! session ':idle nil))
+
+(defn -after-stop [session]
+  "Unregister SESSION on stop."
+  (hive-hagent-olympus/-remove! session))
+
+(defn enable []
+  "Install advice so core lifecycle events propagate into olympus."
+  (interactive)
+  (advice-add 'hive-hagent-core/open-session :filter-return
+              'hive-hagent-olympus/-after-open)
+  (advice-add 'hive-hagent-core/send-prompt :after
+              'hive-hagent-olympus/-after-send)
+  (advice-add 'hive-hagent-core/interrupt-session :after
+              'hive-hagent-olympus/-after-interrupt)
+  (advice-add 'hive-hagent-core/stop-session :after
+              'hive-hagent-olympus/-after-stop)
+  (hive-hagent-log/log-info 'olympus "advice installed"))
+
+(defn disable []
+  "Remove advice installed by `enable'."
+  (interactive)
+  (advice-remove 'hive-hagent-core/open-session
+                 'hive-hagent-olympus/-after-open)
+  (advice-remove 'hive-hagent-core/send-prompt
+                 'hive-hagent-olympus/-after-send)
+  (advice-remove 'hive-hagent-core/interrupt-session
+                 'hive-hagent-olympus/-after-interrupt)
+  (advice-remove 'hive-hagent-core/stop-session
+                 'hive-hagent-olympus/-after-stop)
+  (hive-hagent-log/log-info 'olympus "advice removed"))
+
+;; Auto-enable on load — safe even without hive-emacs; the put/remove
+;; helpers short-circuit when the swarm table is absent.
+(hive-hagent-olympus/enable)
+
+(provide 'hive-hagent-olympus)

@@ -12,7 +12,8 @@
   (:require hive-hagent-log
             hive-hagent-backend
             hive-hagent-core
-            hive-hagent-backend-openclaude))
+            hive-hagent-backend-openclaude
+            hive-hagent-olympus))
 
 ;; ---------------------------------------------------------------------------
 ;; User-facing configuration
