@@ -85,6 +85,45 @@
     (if (null sessions) (message "hive-hagent: no active sessions") (message "hive-hagent: %d active session(s): %s" (length sessions) (mapconcat (lambda ()
     (format "%s/%s" (plist-get (plist-get s :backend) :name) (or (plist-get s :project-root) "<global>"))) sessions ", ")))))
 
+(defcustom hive-hagent-keymap-prefix nil
+  "Prefix key for `hive-hagent' commands.\nSet this in your init file before enabling `hive-hagent-mode'.\nExample: (setq hive-hagent-keymap-prefix (kbd \"C-c h\"))\nNote: Control-c <letter> is reserved for user bindings per Emacs\nconventions, which is exactly what this prefix is meant to be."
+  :group 'hive-hagent
+  :type '(choice (const :tag "None" nil) key-sequence))
+
+(defvar hive-hagent-command-map (let* ((map (make-sparse-keymap)))
+    (define-key map (kbd "h") 'hive-hagent/hive-hagent)
+    (define-key map (kbd "s") 'hive-hagent/hive-hagent-send)
+    (define-key map (kbd "r") 'hive-hagent/hive-hagent-send-region)
+    (define-key map (kbd "i") 'hive-hagent/hive-hagent-interrupt)
+    (define-key map (kbd "q") 'hive-hagent/hive-hagent-stop)
+    (define-key map (kbd "b") 'hive-hagent/hive-hagent-switch-backend)
+    (define-key map (kbd "l") 'hive-hagent/hive-hagent-list-sessions)
+    map)
+  "Keymap for `hive-hagent' commands, bound under `hive-hagent-keymap-prefix'.")
+
+(defvar hive-hagent-mode-map (make-sparse-keymap)
+  "Keymap for `hive-hagent-mode'.")
+
+(defun hive-hagent-setup-keybindings ()
+  "Install `hive-hagent-command-map' under `hive-hagent-keymap-prefix'.\nNo-op if the prefix is unset."
+  (when hive-hagent-keymap-prefix
+    (define-key hive-hagent-mode-map hive-hagent-keymap-prefix hive-hagent-command-map)))
+
+(defvar hive-hagent-mode nil
+  "Non-nil when `hive-hagent-mode' is enabled globally.")
+
+(defun hive-hagent-hive-hagent-mode (&optional arg)
+  "Toggle `hive-hagent-mode'.\nWith positive ARG enable, with non-positive ARG disable, otherwise toggle."
+  (interactive "P")
+  (let* ((enable (cond
+  ((null arg) (not hive-hagent-hive-hagent-mode))
+  ((and (numberp arg) (> arg 0)) t)
+  (t nil))))
+    (setq hive-hagent-mode enable)
+    (if enable (progn
+  (hive-hagent-setup-keybindings)
+  (message "hive-hagent-mode enabled")) (message "hive-hagent-mode disabled"))))
+
 (provide 'hive-hagent)
 
 (provide 'hive-hagent)

@@ -51,12 +51,17 @@
 ;; Interactive commands
 ;; ---------------------------------------------------------------------------
 
-(defn hive-hagent []
+;; Interactive-command defns: names intentionally DO NOT repeat the `hive-hagent'
+;; namespace prefix — the cljel compiler prepends it, so e.g. (defn chat [] ...)
+;; becomes (defun hive-hagent-chat () ...).  Double-prefixing would break
+;; `M-x hive-hagent-chat'.
+
+(defn chat []
   "Open (or reuse) a hagent chat for the current project."
   (interactive)
   (hive-hagent-core/open-session (hive-hagent/-resolve-backend)))
 
-(defn hive-hagent-send [prompt]
+(defn send [prompt]
   "Send PROMPT to the active hagent session for this project.
 Starts a session if none exists."
   (interactive "sPrompt: ")
@@ -65,12 +70,12 @@ Starts a session if none exists."
                      (hive-hagent/-resolve-backend)))]
     (hive-hagent-core/send-prompt session prompt)))
 
-(defn hive-hagent-send-region [beg end]
+(defn send-region [beg end]
   "Send the region BEG..END as a prompt."
   (interactive "r")
-  (hive-hagent/hive-hagent-send (buffer-substring-no-properties beg end)))
+  (hive-hagent/send (buffer-substring-no-properties beg end)))
 
-(defn hive-hagent-interrupt []
+(defn interrupt []
   "Interrupt the current turn in the active hagent session."
   (interactive)
   (let [session (hive-hagent/-current-session)]
@@ -78,7 +83,7 @@ Starts a session if none exists."
       (hive-hagent-core/interrupt-session session)
       (message "hive-hagent: no active session"))))
 
-(defn hive-hagent-stop []
+(defn stop []
   "Stop and tear down the hagent session for this project."
   (interactive)
   (let [session (hive-hagent/-current-session)]
@@ -86,7 +91,7 @@ Starts a session if none exists."
       (hive-hagent-core/stop-session session)
       (message "hive-hagent: no active session"))))
 
-(defn hive-hagent-switch-backend []
+(defn switch-backend []
   "Pick a backend for the current project, remembered for this session."
   (interactive)
   (let [names (mapcar 'symbol-name (hive-hagent-backend/list-backends))
@@ -98,7 +103,7 @@ Starts a session if none exists."
                 (assoc-delete-all root hive-hagent--project-backends)))
     (message "hive-hagent: %s active in %s" sym (or root "<global>"))))
 
-(defn hive-hagent-list-sessions []
+(defn list-sessions []
   "Show all live hagent sessions in the echo area."
   (interactive)
   (let [sessions (hive-hagent-core/active-sessions)]
@@ -113,5 +118,71 @@ Starts a session if none exists."
                           (or (plist-get s :project-root) "<global>")))
                 sessions
                 ", ")))))
+
+;; ---------------------------------------------------------------------------
+;; Keymap + minor mode
+;;
+;; Native elisp pattern (mirrors hive-mcp-triggers):
+;;   - command-map   holds the sub-keys under the user prefix
+;;   - prefix var    is a defcustom so users pick their own prefix
+;;   - minor mode    binds the prefix to the command map when enabled
+;;
+;; Doom/evil users can bind the minor-mode map via `map!' in their own
+;; config, or simply set `hive-hagent-keymap-prefix' and flip the mode on.
+;; ---------------------------------------------------------------------------
+
+(defcustom hive-hagent-keymap-prefix nil
+  "Prefix key for `hive-hagent' commands.
+Set this in your init file before enabling `hive-hagent-mode'.
+Example: (setq hive-hagent-keymap-prefix (kbd \"C-c h\"))
+Note: Control-c <letter> is reserved for user bindings per Emacs
+conventions, which is exactly what this prefix is meant to be."
+  :type '(choice (const :tag "None" nil) key-sequence)
+  :group 'hive-hagent)
+
+(defvar hive-hagent-command-map
+  (let [map (make-sparse-keymap)]
+    (define-key map (kbd "h") 'hive-hagent/chat)
+    (define-key map (kbd "s") 'hive-hagent/send)
+    (define-key map (kbd "r") 'hive-hagent/send-region)
+    (define-key map (kbd "i") 'hive-hagent/interrupt)
+    (define-key map (kbd "q") 'hive-hagent/stop)
+    (define-key map (kbd "b") 'hive-hagent/switch-backend)
+    (define-key map (kbd "l") 'hive-hagent/list-sessions)
+    map)
+  "Keymap for `hive-hagent' commands, bound under `hive-hagent-keymap-prefix'.")
+
+(defvar hive-hagent-mode-map (make-sparse-keymap)
+  "Keymap for `hive-hagent-mode'.")
+
+(defn setup-keybindings []
+  "Install `hive-hagent-command-map' under `hive-hagent-keymap-prefix'.
+No-op if the prefix is unset."
+  (when hive-hagent-keymap-prefix
+    (define-key hive-hagent-mode-map
+                hive-hagent-keymap-prefix
+                hive-hagent-command-map)))
+
+;; define-minor-mode isn't supported by cljel yet; expand the handful of
+;; forms we need directly.  Public state var shares the `hive-hagent-mode'
+;; symbol (required by minor-mode conventions); the toggle fn is named
+;; `mode' and compiles to `hive-hagent-mode', shadowing the defvar as a
+;; function cell — elisp allows both on the same symbol.
+(defvar hive-hagent-mode nil
+  "Non-nil when `hive-hagent-mode' is enabled globally.")
+
+(defn mode [&optional arg]
+  "Toggle `hive-hagent-mode'.
+With positive ARG enable, with non-positive ARG disable, otherwise toggle."
+  (interactive "P")
+  (let [enable (cond ((null arg) (not hive-hagent-mode))
+                     ((and (numberp arg) (> arg 0)) t)
+                     (t nil))]
+    (setq hive-hagent-mode enable)
+    (if enable
+      (progn
+        (hive-hagent/setup-keybindings)
+        (message "hive-hagent-mode enabled"))
+      (message "hive-hagent-mode disabled"))))
 
 (provide 'hive-hagent)
