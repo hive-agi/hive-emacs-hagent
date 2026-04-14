@@ -60,21 +60,21 @@
   (hive-hagent-olympus--remove-bang session))
 
 (defun hive-hagent-olympus-enable ()
-  "Install advice so core lifecycle events propagate into olympus."
+  "Install advice so core lifecycle events propagate into olympus.\nQuoted symbols are NOT translated by the cljel compiler, so refer to\ncompiled elisp names directly (ns prefix + dash-separated)."
   (interactive)
-  (advice-add 'hive-hagent-core/open-session :filter-return 'hive-hagent-olympus/-after-open)
-  (advice-add 'hive-hagent-core/send-prompt :after 'hive-hagent-olympus/-after-send)
-  (advice-add 'hive-hagent-core/interrupt-session :after 'hive-hagent-olympus/-after-interrupt)
-  (advice-add 'hive-hagent-core/stop-session :after 'hive-hagent-olympus/-after-stop)
+  (advice-add 'hive-hagent-core-open-session :filter-return 'hive-hagent-olympus--after-open)
+  (advice-add 'hive-hagent-core-send-prompt :after 'hive-hagent-olympus--after-send)
+  (advice-add 'hive-hagent-core-interrupt-session :after 'hive-hagent-olympus--after-interrupt)
+  (advice-add 'hive-hagent-core-stop-session :after 'hive-hagent-olympus--after-stop)
   (hive-hagent-log-log-info 'olympus "advice installed"))
 
 (defun hive-hagent-olympus-disable ()
   "Remove advice installed by `enable'."
   (interactive)
-  (advice-remove 'hive-hagent-core/open-session 'hive-hagent-olympus/-after-open)
-  (advice-remove 'hive-hagent-core/send-prompt 'hive-hagent-olympus/-after-send)
-  (advice-remove 'hive-hagent-core/interrupt-session 'hive-hagent-olympus/-after-interrupt)
-  (advice-remove 'hive-hagent-core/stop-session 'hive-hagent-olympus/-after-stop)
+  (advice-remove 'hive-hagent-core-open-session 'hive-hagent-olympus--after-open)
+  (advice-remove 'hive-hagent-core-send-prompt 'hive-hagent-olympus--after-send)
+  (advice-remove 'hive-hagent-core-interrupt-session 'hive-hagent-olympus--after-interrupt)
+  (advice-remove 'hive-hagent-core-stop-session 'hive-hagent-olympus--after-stop)
   (hive-hagent-log-log-info 'olympus "advice removed"))
 
 (hive-hagent-olympus-enable)

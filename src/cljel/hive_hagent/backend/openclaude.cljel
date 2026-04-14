@@ -155,12 +155,14 @@
 ;; ---------------------------------------------------------------------------
 
 (defvar hive-hagent-backend-openclaude--backend
+  ;; Quoted symbols pass through the cljel compiler verbatim — reference
+  ;; the compiled elisp names directly so `funcall' resolves at runtime.
   (list :name 'openclaude
         :label "openclaude"
-        :start-fn 'hive-hagent-backend-openclaude/start-fn
-        :send-fn 'hive-hagent-backend-openclaude/send-fn
-        :interrupt-fn 'hive-hagent-backend-openclaude/interrupt-fn
-        :stop-fn 'hive-hagent-backend-openclaude/stop-fn)
+        :start-fn 'hive-hagent-backend-openclaude-start-fn
+        :send-fn 'hive-hagent-backend-openclaude-send-fn
+        :interrupt-fn 'hive-hagent-backend-openclaude-interrupt-fn
+        :stop-fn 'hive-hagent-backend-openclaude-stop-fn)
   "The openclaude backend plist.")
 
 ;; Register on load

@@ -142,13 +142,15 @@ conventions, which is exactly what this prefix is meant to be."
 
 (defvar hive-hagent-command-map
   (let [map (make-sparse-keymap)]
-    (define-key map (kbd "h") 'hive-hagent/chat)
-    (define-key map (kbd "s") 'hive-hagent/send)
-    (define-key map (kbd "r") 'hive-hagent/send-region)
-    (define-key map (kbd "i") 'hive-hagent/interrupt)
-    (define-key map (kbd "q") 'hive-hagent/stop)
-    (define-key map (kbd "b") 'hive-hagent/switch-backend)
-    (define-key map (kbd "l") 'hive-hagent/list-sessions)
+    ;; NB: quoted symbols are NOT translated by the cljel compiler, so
+    ;; reference the compiled elisp names directly (hive-hagent-<fn>).
+    (define-key map (kbd "h") 'hive-hagent-chat)
+    (define-key map (kbd "s") 'hive-hagent-send)
+    (define-key map (kbd "r") 'hive-hagent-send-region)
+    (define-key map (kbd "i") 'hive-hagent-interrupt)
+    (define-key map (kbd "q") 'hive-hagent-stop)
+    (define-key map (kbd "b") 'hive-hagent-switch-backend)
+    (define-key map (kbd "l") 'hive-hagent-list-sessions)
     map)
   "Keymap for `hive-hagent' commands, bound under `hive-hagent-keymap-prefix'.")
 

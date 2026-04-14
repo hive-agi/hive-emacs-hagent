@@ -132,7 +132,7 @@
     (when (and buf (buffer-live-p buf))
     (kill-buffer buf))))
 
-(defvar hive-hagent-backend-openclaude--backend (list :name 'openclaude :label "openclaude" :start-fn 'hive-hagent-backend-openclaude/start-fn :send-fn 'hive-hagent-backend-openclaude/send-fn :interrupt-fn 'hive-hagent-backend-openclaude/interrupt-fn :stop-fn 'hive-hagent-backend-openclaude/stop-fn)
+(defvar hive-hagent-backend-openclaude--backend (list :name 'openclaude :label "openclaude" :start-fn 'hive-hagent-backend-openclaude-start-fn :send-fn 'hive-hagent-backend-openclaude-send-fn :interrupt-fn 'hive-hagent-backend-openclaude-interrupt-fn :stop-fn 'hive-hagent-backend-openclaude-stop-fn)
   "The openclaude backend plist.")
 
 (hive-hagent-backend-register-bang hive-hagent-backend-openclaude--backend)

@@ -40,35 +40,35 @@
         (name (hive-hagent--resolve-backend-name)))
     (hive-hagent-core-find-session root name)))
 
-(defun hive-hagent-hive-hagent ()
+(defun hive-hagent-chat ()
   "Open (or reuse) a hagent chat for the current project."
   (interactive)
   (hive-hagent-core-open-session (hive-hagent--resolve-backend)))
 
-(defun hive-hagent-hive-hagent-send (prompt)
+(defun hive-hagent-send (prompt)
   "Send PROMPT to the active hagent session for this project.\nStarts a session if none exists."
   (interactive "sPrompt: ")
   (let* ((session (or (hive-hagent--current-session) (hive-hagent-core-open-session (hive-hagent--resolve-backend)))))
     (hive-hagent-core-send-prompt session prompt)))
 
-(defun hive-hagent-hive-hagent-send-region (beg end)
+(defun hive-hagent-send-region (beg end)
   "Send the region BEG..END as a prompt."
   (interactive "r")
-  (hive-hagent-hive-hagent-send (buffer-substring-no-properties beg end)))
+  (hive-hagent-send (buffer-substring-no-properties beg end)))
 
-(defun hive-hagent-hive-hagent-interrupt ()
+(defun hive-hagent-interrupt ()
   "Interrupt the current turn in the active hagent session."
   (interactive)
   (let* ((session (hive-hagent--current-session)))
     (if session (hive-hagent-core-interrupt-session session) (message "hive-hagent: no active session"))))
 
-(defun hive-hagent-hive-hagent-stop ()
+(defun hive-hagent-stop ()
   "Stop and tear down the hagent session for this project."
   (interactive)
   (let* ((session (hive-hagent--current-session)))
     (if session (hive-hagent-core-stop-session session) (message "hive-hagent: no active session"))))
 
-(defun hive-hagent-hive-hagent-switch-backend ()
+(defun hive-hagent-switch-backend ()
   "Pick a backend for the current project, remembered for this session."
   (interactive)
   (let* ((names (mapcar 'symbol-name (hive-hagent-backend-list-backends)))
@@ -78,7 +78,7 @@
     (setq hive-hagent--project-backends (cons (cons root sym) (assoc-delete-all root hive-hagent--project-backends)))
     (message "hive-hagent: %s active in %s" sym (or root "<global>"))))
 
-(defun hive-hagent-hive-hagent-list-sessions ()
+(defun hive-hagent-list-sessions ()
   "Show all live hagent sessions in the echo area."
   (interactive)
   (let* ((sessions (hive-hagent-core-active-sessions)))
@@ -91,13 +91,13 @@
   :type '(choice (const :tag "None" nil) key-sequence))
 
 (defvar hive-hagent-command-map (let* ((map (make-sparse-keymap)))
-    (define-key map (kbd "h") 'hive-hagent/hive-hagent)
-    (define-key map (kbd "s") 'hive-hagent/hive-hagent-send)
-    (define-key map (kbd "r") 'hive-hagent/hive-hagent-send-region)
-    (define-key map (kbd "i") 'hive-hagent/hive-hagent-interrupt)
-    (define-key map (kbd "q") 'hive-hagent/hive-hagent-stop)
-    (define-key map (kbd "b") 'hive-hagent/hive-hagent-switch-backend)
-    (define-key map (kbd "l") 'hive-hagent/hive-hagent-list-sessions)
+    (define-key map (kbd "h") 'hive-hagent-chat)
+    (define-key map (kbd "s") 'hive-hagent-send)
+    (define-key map (kbd "r") 'hive-hagent-send-region)
+    (define-key map (kbd "i") 'hive-hagent-interrupt)
+    (define-key map (kbd "q") 'hive-hagent-stop)
+    (define-key map (kbd "b") 'hive-hagent-switch-backend)
+    (define-key map (kbd "l") 'hive-hagent-list-sessions)
     map)
   "Keymap for `hive-hagent' commands, bound under `hive-hagent-keymap-prefix'.")
 
@@ -112,11 +112,11 @@
 (defvar hive-hagent-mode nil
   "Non-nil when `hive-hagent-mode' is enabled globally.")
 
-(defun hive-hagent-hive-hagent-mode (&optional arg)
+(defun hive-hagent-mode (&optional arg)
   "Toggle `hive-hagent-mode'.\nWith positive ARG enable, with non-positive ARG disable, otherwise toggle."
   (interactive "P")
   (let* ((enable (cond
-  ((null arg) (not hive-hagent-hive-hagent-mode))
+  ((null arg) (not hive-hagent-mode))
   ((and (numberp arg) (> arg 0)) t)
   (t nil))))
     (setq hive-hagent-mode enable)
