@@ -1,0 +1,52 @@
+(ns hive-hagent-log
+  "Minimal structured logging for hive-hagent.
+
+   Thin wrapper over `message' with component tagging and level filtering.
+   Drop-in replacement would be hive-mcp-log if that package is loaded,
+   but we stay self-contained to avoid a hard dep.")
+
+(defgroup hive-hagent-log nil
+  "Logging settings for hive-hagent."
+  :group 'hive-hagent
+  :prefix "hive-hagent-log-")
+
+(defcustom hive-hagent-log-level 'info
+  "Minimum log level to emit.  One of: debug, info, warn, error."
+  :type '(choice (const debug) (const info) (const warn) (const error))
+  :group 'hive-hagent-log)
+
+(defvar hive-hagent-log--priority
+  '((debug . 0) (info . 1) (warn . 2) (error . 3))
+  "Level priority lookup.")
+
+(defn -enabled-p [level]
+  "Non-nil if LEVEL is at or above the configured minimum."
+  (let [p (alist-get level hive-hagent-log--priority 1)
+        m (alist-get hive-hagent-log-level hive-hagent-log--priority 1)]
+    (>= p m)))
+
+(defn -emit [level component fmt args]
+  "Format and print a log entry."
+  (when (hive-hagent-log/-enabled-p level)
+    (let [label (upcase (symbol-name level))
+          comp  (if (stringp component) component (symbol-name component))
+          msg   (apply 'format fmt args)]
+      (message "[hagent %s %s] %s" label comp msg))))
+
+(defn log-debug [component fmt &rest args]
+  "Debug-level log message."
+  (hive-hagent-log/-emit 'debug component fmt args))
+
+(defn log-info [component fmt &rest args]
+  "Info-level log message."
+  (hive-hagent-log/-emit 'info component fmt args))
+
+(defn log-warn [component fmt &rest args]
+  "Warn-level log message."
+  (hive-hagent-log/-emit 'warn component fmt args))
+
+(defn log-error [component fmt &rest args]
+  "Error-level log message."
+  (hive-hagent-log/-emit 'error component fmt args))
+
+(provide 'hive-hagent-log)

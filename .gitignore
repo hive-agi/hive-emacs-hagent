@@ -1,0 +1,9 @@
+.cpcache/
+.clj-kondo/.cache/
+.lsp/
+pom.xml
+target/
+*.jar
+.DS_Store
+.nrepl-port
+.portal/

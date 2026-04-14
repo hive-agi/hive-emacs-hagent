@@ -1,0 +1,155 @@
+(ns hive-hagent-core
+  "Chat buffer + session registry for hive-hagent.
+
+   Responsibilities:
+     - Own the *hagent:<project>* buffer for each active session.
+     - Render streamed tokens from the backend into the buffer.
+     - Track per-project session handles and route user input.
+
+   The core is backend-agnostic: all subprocess I/O lives in adapters
+   under hive-hagent-backend-*.
+
+   Key functions exposed to the entry point:
+     session-for-project   open or reuse a session
+     send-prompt           push user text into the active session
+     interrupt-session     cancel current turn
+     stop-session          shut the session down"
+  (:require hive-hagent-backend
+            hive-hagent-log))
+
+;; ---------------------------------------------------------------------------
+;; State: project-root -> session plist
+;; Session plist keys: :backend :handle :buffer :project-root :created-at
+;; ---------------------------------------------------------------------------
+
+(defvar hive-hagent-core--sessions nil
+  "Alist of (project-root . session-plist) for all live sessions.")
+
+(defn -buffer-name [project-root backend-name]
+  "Canonical buffer name for a hagent session."
+  (let [base (if project-root
+                (file-name-nondirectory (directory-file-name project-root))
+                "global")]
+    (format "*hagent:%s:%s*" (symbol-name backend-name) base)))
+
+(defn -ensure-buffer [project-root backend-name]
+  "Return (and create if needed) the chat buffer for this session."
+  (let [buf (get-buffer-create (hive-hagent-core/-buffer-name project-root backend-name))]
+    (with-current-buffer buf
+      (setq-local truncate-lines nil)
+      (setq-local word-wrap t))
+    buf))
+
+(defn -insert-at-end [buf text]
+  "Append TEXT to BUF at point-max, preserving read-only discipline."
+  (when (and buf (buffer-live-p buf))
+    (with-current-buffer buf
+      (let [inhibit-read-only t]
+        (save-excursion
+          (goto-char (point-max))
+          (insert text))))))
+
+;; ---------------------------------------------------------------------------
+;; Stream callback — backends invoke this with parsed events
+;; Event shape: plist with :kind and kind-specific fields
+;;   (:kind :token :text "hello ")
+;;   (:kind :turn-start :role "assistant")
+;;   (:kind :turn-end)
+;;   (:kind :tool-call :name "Bash" :input "...")
+;;   (:kind :error :message "...")
+;; ---------------------------------------------------------------------------
+
+(defn render-event [session event]
+  "Render a stream EVENT from a backend into the SESSION buffer."
+  (let [buf (plist-get session :buffer)
+        kind (plist-get event :kind)]
+    (pcase kind
+      (':turn-start
+       (hive-hagent-core/-insert-at-end
+        buf
+        (format "\n\n## %s\n\n" (or (plist-get event :role) "assistant"))))
+      (':token
+       (hive-hagent-core/-insert-at-end buf (plist-get event :text)))
+      (':turn-end
+       (hive-hagent-core/-insert-at-end buf "\n"))
+      (':tool-call
+       (hive-hagent-core/-insert-at-end
+        buf
+        (format "\n  [tool %s]\n" (plist-get event :name))))
+      (':error
+       (hive-hagent-core/-insert-at-end
+        buf
+        (format "\n[error] %s\n" (plist-get event :message))))
+      (_
+       (hive-hagent-log/log-warn 'core "unknown event kind: %S" kind)))))
+
+;; ---------------------------------------------------------------------------
+;; Session lifecycle
+;; ---------------------------------------------------------------------------
+
+(defn session-for-project [project-root backend]
+  "Open or reuse a session rooted at PROJECT-ROOT using BACKEND plist."
+  (let [existing (cdr (assoc project-root hive-hagent-core--sessions))]
+    (if (and existing
+             (hive-hagent-backend/alive-p
+              backend
+              (plist-get existing :handle)))
+      existing
+      (let [buf (hive-hagent-core/-ensure-buffer
+                 project-root
+                 (plist-get backend :name))
+            on-event (lambda [ev] (hive-hagent-core/render-event
+                                   (cdr (assoc project-root hive-hagent-core--sessions))
+                                   ev))
+            handle (hive-hagent-backend/start
+                    backend
+                    (list :project-root project-root
+                          :on-event on-event))
+            session (list :backend backend
+                          :handle handle
+                          :buffer buf
+                          :project-root project-root
+                          :created-at (current-time))]
+        (setq hive-hagent-core--sessions
+              (cons (cons project-root session)
+                    (assoc-delete-all project-root
+                                      hive-hagent-core--sessions)))
+        (hive-hagent-log/log-info
+         'core "started %s session for %s"
+         (plist-get backend :name) (or project-root "<global>"))
+        session))))
+
+(defn send-prompt [session prompt]
+  "Send PROMPT through SESSION."
+  (hive-hagent-core/-insert-at-end
+   (plist-get session :buffer)
+   (format "\n\n## user\n\n%s\n" prompt))
+  (hive-hagent-backend/send
+   (plist-get session :backend)
+   (plist-get session :handle)
+   prompt))
+
+(defn interrupt-session [session]
+  "Interrupt the current turn on SESSION."
+  (hive-hagent-backend/interrupt
+   (plist-get session :backend)
+   (plist-get session :handle))
+  (hive-hagent-log/log-info 'core "interrupted %s"
+                            (plist-get session :project-root)))
+
+(defn stop-session [session]
+  "Stop SESSION and drop it from the registry."
+  (hive-hagent-backend/stop
+   (plist-get session :backend)
+   (plist-get session :handle))
+  (setq hive-hagent-core--sessions
+        (assoc-delete-all (plist-get session :project-root)
+                          hive-hagent-core--sessions))
+  (hive-hagent-log/log-info 'core "stopped %s"
+                            (plist-get session :project-root)))
+
+(defn active-sessions []
+  "Return all live session plists."
+  (mapcar 'cdr hive-hagent-core--sessions))
+
+(provide 'hive-hagent-core)

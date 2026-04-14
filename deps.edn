@@ -1,0 +1,19 @@
+{:paths ["src" "resources"]
+
+ :deps {org.clojure/clojure {:mvn/version "1.12.1"}
+        com.taoensso/timbre {:mvn/version "6.8.0"}
+
+        ;; hive-dsl — Result ADT, rescue/guard DSL
+        io.github.hive-agi/hive-dsl
+        {:git/tag "v0.3.9" :git/sha "494af2c0ef889380649e1578942ffdfc205f446d"}
+
+        ;; Subprocess for headed agent CLIs
+        babashka/process {:mvn/version "0.6.25"}}
+
+ :aliases
+ {:test
+  {:extra-paths ["test"]
+   :extra-deps {io.github.cognitect-labs/test-runner
+                {:git/tag "v0.5.1" :git/sha "dfb30dd"}
+                org.clojure/test.check {:mvn/version "1.1.1"}}
+   :main-opts ["-m" "cognitect.test-runner"]}}}
