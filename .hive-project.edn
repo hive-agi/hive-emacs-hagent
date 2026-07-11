@@ -1,0 +1,5 @@
+{:project-id "hive-emacs-hagent"
+ :parent "hive"
+ :description "Headed agent code — agents that run with an Emacs 'head' (interactive in-editor UI surface) rather than headless. Written in cljel (a Clojure dialect we author that compiles to elisp)."
+ :language :clojure-elisp
+ :tags ["hive-emacs-hagent" "emacs" "cljel" "headed-agent" "agent" "ui"]}
