@@ -5,7 +5,7 @@
 
         ;; hive-dsl — Result ADT, rescue/guard DSL
         io.github.hive-agi/hive-dsl
-        {:mvn/version "0.5.2"}
+        {:mvn/version "0.5.5"}
 
         ;; Subprocess for headed agent CLIs
         babashka/process {:mvn/version "0.6.25"}}
