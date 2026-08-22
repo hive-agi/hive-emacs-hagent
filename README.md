@@ -1,5 +1,14 @@
 # hive-emacs-hagent
 
+<!-- hive-badges -->
+
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.hive-agi/hive-emacs-hagent.svg)](https://clojars.org/io.github.hive-agi/hive-emacs-hagent)
+[![cljdoc](https://cljdoc.org/badge/io.github.hive-agi/hive-emacs-hagent)](https://cljdoc.org/d/io.github.hive-agi/hive-emacs-hagent/CURRENT)
+[![release](https://github.com/hive-agi/hive-emacs-hagent/actions/workflows/release.yml/badge.svg)](https://github.com/hive-agi/hive-emacs-hagent/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+<!-- /hive-badges -->
+
 **Headed Agent** chat backends for Emacs — written in [cljel](https://github.com/hive-agi/clojure-elisp).
 
 Lean alternative to `claude-code-ide.el`. Provides chat buffers backed by headed CLI agents:
