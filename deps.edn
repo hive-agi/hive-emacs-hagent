@@ -1,11 +1,11 @@
 {:paths ["src" "resources"]
 
- :deps {org.clojure/clojure {:mvn/version "1.12.5"}
+ :deps {org.clojure/clojure {:mvn/version "1.12.6"}
         com.taoensso/timbre {:mvn/version "6.8.0"}
 
         ;; hive-dsl — Result ADT, rescue/guard DSL
         io.github.hive-agi/hive-dsl
-        {:mvn/version "0.5.24"}
+        {:mvn/version "0.5.27"}
 
         ;; Subprocess for headed agent CLIs
         babashka/process {:mvn/version "0.6.25"}}
@@ -14,7 +14,7 @@
  {
   ;; :build — tools.build entrypoint (clojure -T:build <task>). Canonical hive
   ;; build: jar / jar-aot / install / bump / verify-license / deploy.
-  :build {:deps {io.github.hive-agi/hive-build {:mvn/version "0.1.15"}}
+  :build {:deps {io.github.hive-agi/hive-build {:mvn/version "0.1.17"}}
           :ns-default hive-build.api}
 :test
   {:extra-paths ["test"]
